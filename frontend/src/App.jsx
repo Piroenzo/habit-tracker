@@ -1,4 +1,4 @@
-import { BrowserRouter, Routes, Route } from "react-router-dom";
+import { BrowserRouter, Navigate, Route, Routes } from "react-router-dom";
 import Login from "./pages/Login";
 import Register from "./pages/Register";
 import Dashboard from "./pages/Dashboard";
@@ -6,6 +6,15 @@ import CreateHabit from "./pages/CreateHabit";
 import HabitDetail from "./pages/HabitDetail";
 import Achievements from "./pages/Achievements";
 import Layout from "./components/Layout";
+import { useAuth } from "./store/useAuth";
+
+function ProtectedRoute({ children }) {
+  const token = useAuth((state) => state.token);
+  if (!token) {
+    return <Navigate to="/" replace />;
+  }
+  return children;
+}
 
 export default function App() {
   return (
@@ -19,38 +28,48 @@ export default function App() {
         <Route
           path="/dashboard"
           element={
-            <Layout>
-              <Dashboard />
-            </Layout>
+            <ProtectedRoute>
+              <Layout>
+                <Dashboard />
+              </Layout>
+            </ProtectedRoute>
           }
         />
 
         <Route
           path="/create-habit"
           element={
-            <Layout>
-              <CreateHabit />
-            </Layout>
+            <ProtectedRoute>
+              <Layout>
+                <CreateHabit />
+              </Layout>
+            </ProtectedRoute>
           }
         />
 
         <Route
           path="/habit/:id"
           element={
-            <Layout>
-              <HabitDetail />
-            </Layout>
+            <ProtectedRoute>
+              <Layout>
+                <HabitDetail />
+              </Layout>
+            </ProtectedRoute>
           }
         />
 
         <Route
           path="/achievements"
           element={
-            <Layout>
-              <Achievements />
-            </Layout>
+            <ProtectedRoute>
+              <Layout>
+                <Achievements />
+              </Layout>
+            </ProtectedRoute>
           }
         />
+
+        <Route path="*" element={<Navigate to="/" replace />} />
       </Routes>
     </BrowserRouter>
   );
