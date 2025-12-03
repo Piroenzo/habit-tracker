@@ -1,6 +1,8 @@
+from datetime import date, timedelta
+from calendar import monthrange
+
 from database import db
 from models import Achievement, HabitLog, Habit
-from datetime import date
 
 
 def unlock(user_id, title, description=""):
@@ -99,9 +101,11 @@ def evaluate_log_achievements(user_id, habit_id, log_date):
         unlock(user_id, "50 completados", "50 veces es enorme constancia 💪")
 
     # 🟧 Mes perfecto (todos los días del mes)
-    logs_month = [l for l in logs if l.date.month == log_date.month and l.date.year == log_date.year]
+    logs_month = [
+        l for l in logs if l.date.month == log_date.month and l.date.year == log_date.year
+    ]
 
-    days_in_month = log_date.replace(day=1).replace(month=log_date.month).day
+    days_in_month = monthrange(log_date.year, log_date.month)[1]
 
     completed_days = sum(1 for l in logs_month if l.completed)
 
