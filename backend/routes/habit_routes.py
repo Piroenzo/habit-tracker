@@ -1,7 +1,7 @@
 from flask import Blueprint, request, jsonify
 from flask_jwt_extended import jwt_required, get_jwt_identity
 from database import db
-from models import Habit, HabitLog
+from models import Achievement, Habit, HabitLog
 from datetime import date, datetime, timedelta
 from calendar import monthrange
 from sqlalchemy import extract
@@ -40,14 +40,30 @@ def get_habits():
 @jwt_required()
 def create_habit():
     user_id = int(get_jwt_identity())  # ←🔥 FIX IMPORTANTE
-    data = request.get_json()
+    data = request.get_json(silent=True) or {}
+
+    name = (data.get("name") or "").strip()
+    if not name:
+        return jsonify({"message": "El nombre del hábito es obligatorio"}), 400
+
+    frequency = data.get("frequency", "daily")
+    allowed_frequencies = {"daily", "weekly", "custom"}
+    if frequency not in allowed_frequencies:
+        return jsonify({"message": "Frecuencia inválida"}), 400
+
+    goal_value = data.get("goal_value")
+    if goal_value is not None:
+        try:
+            goal_value = int(goal_value)
+        except (TypeError, ValueError):
+            return jsonify({"message": "goal_value debe ser numérico"}), 400
 
     habit = Habit(
         user_id=user_id,
-        name=data.get("name"),
+        name=name,
         description=data.get("description"),
-        frequency=data.get("frequency", "daily"),
-        goal_value=data.get("goal_value"),
+        frequency=frequency,
+        goal_value=goal_value,
     )
 
     db.session.add(habit)
@@ -97,16 +113,19 @@ def log_habit(habit_id):
     user_id = int(get_jwt_identity())  # ←🔥 FIX IMPORTANTE
     habit = Habit.query.filter_by(id=habit_id, user_id=user_id).first_or_404()
 
-    data = request.get_json()
+    data = request.get_json(silent=True) or {}
     log_date_str = data.get("date")
     completed = data.get("completed", True)
     value = data.get("value")
 
-    if log_date_str:
-        year, month, day = map(int, log_date_str.split("-"))
-        log_date = date(year, month, day)
-    else:
-        log_date = date.today()
+    try:
+        if log_date_str:
+            year, month, day = map(int, log_date_str.split("-"))
+            log_date = date(year, month, day)
+        else:
+            log_date = date.today()
+    except (TypeError, ValueError):
+        return jsonify({"message": "Formato de fecha inválido. Use YYYY-MM-DD"}), 400
 
     log = HabitLog.query.filter_by(habit_id=habit.id, date=log_date).first()
     if not log:
@@ -281,3 +300,22 @@ def habit_charts(habit_id):
             "percentage": percentage_month
         }
     })
+
+
+# ===============================
+#        LIST ACHIEVEMENTS
+# ===============================
+@habits_bp.route("/achievements", methods=["GET"])
+@jwt_required()
+def list_achievements():
+    user_id = int(get_jwt_identity())
+    achievements = Achievement.query.filter_by(user_id=user_id).order_by(Achievement.unlocked_at.desc()).all()
+
+    return jsonify([
+        {
+            "title": a.title,
+            "description": a.description,
+            "unlocked_at": a.unlocked_at.isoformat(),
+        }
+        for a in achievements
+    ])
